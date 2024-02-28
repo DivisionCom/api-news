@@ -2,6 +2,7 @@ package dev.divisioncom.newsapi
 
 import androidx.annotation.IntRange
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.skydoves.retrofit.adapters.result.ResultCallAdapterFactory
 import dev.divisioncom.newsapi.models.Article
 import dev.divisioncom.newsapi.models.Language
 import dev.divisioncom.newsapi.models.Response
@@ -29,8 +30,7 @@ interface NewsApi {
         @Query("sortBy") sortBy: SortBy? = null,
         @Query("pageSize") @IntRange(from = 0, to = 100) pageSize: Int = 100,
         @Query("page") @IntRange(from = 1) page: Int = 1,
-    ): Response<Article>
-
+    ): Result<Response<Article>>
 }
 
 fun NewsApi(
@@ -41,6 +41,7 @@ fun NewsApi(
     val retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
         .addConverterFactory(jsonConverterFactory)
+        .addCallAdapterFactory(ResultCallAdapterFactory.create())
         .build()
 
     return retrofit.create(NewsApi::class.java)
