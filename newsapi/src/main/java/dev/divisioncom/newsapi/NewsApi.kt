@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import retrofit2.create
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
@@ -39,21 +40,28 @@ interface NewsApi {
 fun NewsApi(
     baseUrl: String,
     apiKey: String,
+    okHttpClient: OkHttpClient? = null,
+    json: Json = Json,
+): NewsApi {
+    return retrofit(baseUrl, apiKey, okHttpClient, json).create()
+}
+
+private fun retrofit(
+    baseUrl: String,
+    apiKey: String,
     okHttpClient: OkHttpClient?,
     json: Json,
-): NewsApi {
+) : Retrofit {
     val jsonConverterFactory = json.asConverterFactory(MediaType.get("application/json"))
 
     okHttpClient?.newBuilder() ?: OkHttpClient.Builder()
         .addInterceptor(TimeApiKeyInterceptor(apiKey))
 
-    val retrofit = Retrofit.Builder()
+    return Retrofit.Builder()
         .baseUrl(baseUrl)
         .addConverterFactory(jsonConverterFactory)
         .addCallAdapterFactory(ResultCallAdapterFactory.create())
         .run { if (okHttpClient != null) client(okHttpClient) else this }
         .build()
-
-    return retrofit.create(NewsApi::class.java)
 }
 
