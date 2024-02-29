@@ -7,14 +7,13 @@ import dev.divisioncom.newsapi.models.Article
 import dev.divisioncom.newsapi.models.Language
 import dev.divisioncom.newsapi.models.Response
 import dev.divisioncom.newsapi.models.SortBy
-import dev.divisioncom.newsapi.utils.TimeApiKeyInterceptor
+import dev.divisioncom.newsapi.utils.NewsApiKeyInterceptor
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.create
 import retrofit2.http.GET
-import retrofit2.http.Header
 import retrofit2.http.Query
 import java.util.Date
 
@@ -55,7 +54,7 @@ private fun retrofit(
     val jsonConverterFactory = json.asConverterFactory(MediaType.get("application/json"))
 
     val modifiedOkHttpClient = (okHttpClient?.newBuilder() ?: OkHttpClient.Builder())
-        .addInterceptor(TimeApiKeyInterceptor(apiKey))
+        .addInterceptor(NewsApiKeyInterceptor(apiKey))
         .build()
 
     return Retrofit.Builder()
