@@ -54,14 +54,15 @@ private fun retrofit(
 ) : Retrofit {
     val jsonConverterFactory = json.asConverterFactory(MediaType.get("application/json"))
 
-    okHttpClient?.newBuilder() ?: OkHttpClient.Builder()
+    val modifiedOkHttpClient = (okHttpClient?.newBuilder() ?: OkHttpClient.Builder())
         .addInterceptor(TimeApiKeyInterceptor(apiKey))
+        .build()
 
     return Retrofit.Builder()
         .baseUrl(baseUrl)
         .addConverterFactory(jsonConverterFactory)
         .addCallAdapterFactory(ResultCallAdapterFactory.create())
-        .run { if (okHttpClient != null) client(okHttpClient) else this }
+        .client(modifiedOkHttpClient)
         .build()
 }
 
