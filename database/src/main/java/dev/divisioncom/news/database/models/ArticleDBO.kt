@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 import java.util.Date
 
 @Entity
-data class Article(
+data class ArticleDBO(
     @PrimaryKey(autoGenerate = true) val id: Long,
     @ColumnInfo("source") @Embedded val source: Source,
     @ColumnInfo("author") val author: String,

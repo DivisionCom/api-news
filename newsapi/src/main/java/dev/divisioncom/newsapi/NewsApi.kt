@@ -3,9 +3,9 @@ package dev.divisioncom.newsapi
 import androidx.annotation.IntRange
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.skydoves.retrofit.adapters.result.ResultCallAdapterFactory
-import dev.divisioncom.newsapi.models.Article
+import dev.divisioncom.newsapi.models.ArticleDTO
 import dev.divisioncom.newsapi.models.Language
-import dev.divisioncom.newsapi.models.Response
+import dev.divisioncom.newsapi.models.ResponseDTO
 import dev.divisioncom.newsapi.models.SortBy
 import dev.divisioncom.newsapi.utils.NewsApiKeyInterceptor
 import kotlinx.serialization.json.Json
@@ -33,7 +33,7 @@ interface NewsApi {
         @Query("sortBy") sortBy: SortBy? = null,
         @Query("pageSize") @IntRange(from = 0, to = 100) pageSize: Int = 100,
         @Query("page") @IntRange(from = 1) page: Int = 1,
-    ): Result<Response<Article>>
+    ): Result<ResponseDTO<ArticleDTO>>
 }
 
 fun NewsApi(
