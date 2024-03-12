@@ -11,13 +11,10 @@ class ArticlesRepository(
     private val api: NewsApi,
 ) {
 
-    suspend fun getAll(): Flow<Article> {
-        api.everything()
-        return database.articlesDao()
+    fun getAll(): Flow<List<Article>> {
+        return database.articlesDao
             .getAll()
-            .map {
-
-            }
+            .map { articles -> articles.map { it.toArticle() } }
     }
 
     suspend fun search(query: String): Flow<Article> {
