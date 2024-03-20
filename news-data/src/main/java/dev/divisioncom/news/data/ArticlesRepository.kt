@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import java.io.IOException
 
@@ -23,11 +25,9 @@ class ArticlesRepository(
 
     fun getAll(): Flow<RequestResult<List<Article>>> {
         val cachedAllArticles: Flow<RequestResult.Success<List<ArticleDBO>>> = getAllFromDatabase()
+        val remoteArticles: Flow<RequestResult<*>> = getAllFromServer()
 
-        val remoteArticles: Flow<RequestResult.Success<*>> = getAllFromServer()
-
-        cachedAllArticles.map
-        {
+        cachedAllArticles.map {
 
         }
         return cachedAllArticles.combine(remoteArticles)
@@ -37,13 +37,17 @@ class ArticlesRepository(
     }
 
     private fun getAllFromServer(): Flow<RequestResult<ResponseDTO<ArticleDTO>>> {
-        return flow { emit(api.everything()) }
-            .map { result: Result<ResponseDTO<ArticleDTO>> -> result.toRequestResult() }
-            .onEach { requestResult: RequestResult<ResponseDTO<ArticleDTO>> ->
-                if (requestResult is RequestResult.Success) {
-                    saveNetResponseToCache(checkNotNull(requestResult.data).articles)
+        val apiRequest = flow { emit(api.everything()) }
+            .onEach { result ->
+                if (result.isSuccess) {
+                    saveNetResponseToCache(checkNotNull(result.getOrThrow()).articles)
                 }
             }
+            .map { it.toRequestResult() }
+
+        val start = flowOf<RequestResult<ResponseDTO<ArticleDTO>>>(RequestResult.InProgress())
+
+        return merge(apiRequest, start)
     }
 
     private suspend fun saveNetResponseToCache(data: List<ArticleDTO>) {
@@ -65,7 +69,7 @@ class ArticlesRepository(
 
 sealed class RequestResult<E>(internal val data: E? = null) {
 
-    class InProgress<E>(data: E) : RequestResult<E>(data)
+    class InProgress<E>(data: E? = null) : RequestResult<E>(data)
     class Success<E>(data: E) : RequestResult<E>(data)
     class Error<E> : RequestResult<E>()
 }
