@@ -35,7 +35,7 @@ class ArticlesRepository(
         }
     }
 
-    private fun getAllFromServer(): Flow<RequestResult.Success<List<ArticleDBO>?>> {
+    private fun getAllFromServer(): Flow<RequestResult<List<ArticleDBO>>> {
         return flow { emit(api.everything()) }
             .map { result ->
                 if (result.isSuccess) {
@@ -45,13 +45,11 @@ class ArticlesRepository(
                     RequestResult.Error(null)
                 }
             }
-            .filterIsInstance<RequestResult.Success<List<ArticleDTO>?>>()
-            .map { requestResult: RequestResult.Success<List<ArticleDTO>?> ->
-                requestResult.requireData()
-                    .map { articleDto -> articleDto.toArticleDbo() }
-                    .let { RequestResult.Success<List<ArticleDBO>?>(it) }
-            }.onEach { requestResult ->
-                database.articlesDao.insert(requestResult.requireData())
+            .filterIsInstance<RequestResult.Success<List<ArticleDTO>>>()
+            .map { requestResult: RequestResult.Success<List<ArticleDTO>> ->
+                requestResult.map { dtos -> dtos.map { articleDto -> articleDto.toArticleDbo() } }
+            }.onEach { requestResult: RequestResult<List<ArticleDBO>> ->
+                database.articlesDao.insert(requestResult.data)
             }
     }
 
@@ -67,11 +65,20 @@ class ArticlesRepository(
     }
 }
 
-sealed class RequestResult<E>(internal val data: E?) {
+sealed class RequestResult<E>(internal val data: E) {
 
-    class InProgress<E>(data: E?) : RequestResult<E>(data)
-    class Success<E>(data: E?) : RequestResult<E>(data)
-    class Error<E>(data: E?) : RequestResult<E>(data)
+    class InProgress<E>(data: E) : RequestResult<E>(data)
+    class Success<E>(data: E) : RequestResult<E>(data)
+    class Error<E>(data: E) : RequestResult<E>(data)
 }
 
 internal fun <T : Any> RequestResult<T?>.requireData(): T = checkNotNull(data)
+
+internal fun <I, O> RequestResult<I>.map(mapper: (I) -> O): RequestResult<O> {
+    val outData = mapper(data)
+    return when (this) {
+        is RequestResult.Success -> RequestResult.Success(outData)
+        is RequestResult.Error -> RequestResult.Error(outData)
+        is RequestResult.InProgress -> RequestResult.InProgress(outData)
+    }
+}
