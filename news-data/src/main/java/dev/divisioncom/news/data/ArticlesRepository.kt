@@ -5,6 +5,7 @@ import dev.divisioncom.news.database.NewsDatabase
 import dev.divisioncom.news.database.models.ArticleDBO
 import dev.divisioncom.newsapi.NewsApi
 import dev.divisioncom.newsapi.models.ArticleDTO
+import dev.divisioncom.newsapi.models.ResponseDTO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
@@ -35,22 +36,19 @@ class ArticlesRepository(
         }
     }
 
-    private fun getAllFromServer(): Flow<RequestResult<List<ArticleDBO>>> {
+    private fun getAllFromServer(): Flow<RequestResult<ResponseDTO<ArticleDTO>>> {
         return flow { emit(api.everything()) }
-            .map { result ->
-                if (result.isSuccess) {
-                    val response = result.getOrThrow()
-                    RequestResult.Success(response.articles)
-                } else {
-                    RequestResult.Error(null)
+            .map { result: Result<ResponseDTO<ArticleDTO>> -> result.toRequestResult() }
+            .onEach { requestResult: RequestResult<ResponseDTO<ArticleDTO>> ->
+                if (requestResult is RequestResult.Success) {
+                    saveNetResponseToCache(checkNotNull(requestResult.data).articles)
                 }
             }
-            .filterIsInstance<RequestResult.Success<List<ArticleDTO>>>()
-            .map { requestResult: RequestResult.Success<List<ArticleDTO>> ->
-                requestResult.map { dtos -> dtos.map { articleDto -> articleDto.toArticleDbo() } }
-            }.onEach { requestResult: RequestResult<List<ArticleDBO>> ->
-                database.articlesDao.insert(requestResult.data)
-            }
+    }
+
+    private suspend fun saveNetResponseToCache(data: List<ArticleDTO>) {
+        val dbos = data.map { articleDto -> articleDto.toArticleDbo() }
+        database.articlesDao.insert(dbos)
     }
 
     private fun getAllFromDatabase(): Flow<RequestResult.Success<List<ArticleDBO>>> {
@@ -65,20 +63,28 @@ class ArticlesRepository(
     }
 }
 
-sealed class RequestResult<E>(internal val data: E) {
+sealed class RequestResult<E>(internal val data: E? = null) {
 
     class InProgress<E>(data: E) : RequestResult<E>(data)
     class Success<E>(data: E) : RequestResult<E>(data)
-    class Error<E>(data: E) : RequestResult<E>(data)
+    class Error<E> : RequestResult<E>()
 }
 
 internal fun <T : Any> RequestResult<T?>.requireData(): T = checkNotNull(data)
 
-internal fun <I, O> RequestResult<I>.map(mapper: (I) -> O): RequestResult<O> {
+internal fun <I, O> RequestResult<I>.map(mapper: (I?) -> O): RequestResult<O> {
     val outData = mapper(data)
     return when (this) {
         is RequestResult.Success -> RequestResult.Success(outData)
-        is RequestResult.Error -> RequestResult.Error(outData)
+        is RequestResult.Error -> RequestResult.Error()
         is RequestResult.InProgress -> RequestResult.InProgress(outData)
+    }
+}
+
+internal fun <T> Result<T>.toRequestResult(): RequestResult<T> {
+    return when {
+        isSuccess -> RequestResult.Success(getOrThrow())
+        isFailure -> RequestResult.Error()
+        else -> error("Impossible branch")
     }
 }
