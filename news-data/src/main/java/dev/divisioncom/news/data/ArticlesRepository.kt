@@ -21,6 +21,7 @@ import java.io.IOException
 class ArticlesRepository(
     private val database: NewsDatabase,
     private val api: NewsApi,
+    private val requestResponseMergeStrategy: RequestResponseMergeStrategy<List<Article>>,
 ) {
 
     fun getAll(): Flow<RequestResult<List<Article>>> {
@@ -38,8 +39,8 @@ class ArticlesRepository(
                 }
             }
 
-        return cachedAllArticles.combine(remoteArticles) { dbos: RequestResult<List<Article>>, dtos: RequestResult<List<Article>> ->
-            
+        return cachedAllArticles.combine(remoteArticles) { dbos, dtos ->
+            requestResponseMergeStrategy.merge(dbos, dtos)
         }
     }
 
@@ -53,7 +54,6 @@ class ArticlesRepository(
             .map { it.toRequestResult() }
 
         val start = flowOf<RequestResult<ResponseDTO<ArticleDTO>>>(RequestResult.InProgress())
-
         return merge(apiRequest, start)
     }
 
@@ -91,7 +91,6 @@ internal fun <I, O> RequestResult<I>.map(mapper: (I) -> O): RequestResult<O> {
             val outData: O = mapper(checkNotNull(data))
             RequestResult.Success(checkNotNull(outData))
         }
-
         is RequestResult.Error -> RequestResult.Error(data?.let(mapper))
         is RequestResult.InProgress -> RequestResult.InProgress(data?.let(mapper))
     }
