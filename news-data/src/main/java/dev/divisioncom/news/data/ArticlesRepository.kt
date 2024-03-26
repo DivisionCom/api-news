@@ -38,8 +38,8 @@ class ArticlesRepository(
                 }
             }
 
-        return cachedAllArticles.combine(remoteArticles) { dbos: RequestResult<Article>, dtos: RequestResult<Article> ->
-
+        return cachedAllArticles.combine(remoteArticles) { dbos: RequestResult<List<Article>>, dtos: RequestResult<List<Article>> ->
+            
         }
     }
 
@@ -62,10 +62,12 @@ class ArticlesRepository(
         database.articlesDao.insert(dbos)
     }
 
-    private fun getAllFromDatabase(): Flow<RequestResult.Success<List<ArticleDBO>>> {
-        return database.articlesDao
+    private fun getAllFromDatabase(): Flow<RequestResult<List<ArticleDBO>>> {
+        val dbRequest = database.articlesDao
             .getAll()
             .map { RequestResult.Success(it) }
+        val start = flowOf<RequestResult<List<ArticleDBO>>>(RequestResult.InProgress())
+        return merge(start, dbRequest)
     }
 
     suspend fun search(query: String): Flow<Article> {
@@ -77,7 +79,7 @@ class ArticlesRepository(
 sealed class RequestResult<out E>(internal val data: E? = null) {
 
     class InProgress<E>(data: E? = null) : RequestResult<E>(data)
-    class Success<E: Any>(data: E) : RequestResult<E>(data)
+    class Success<E : Any>(data: E) : RequestResult<E>(data)
     class Error<E>(data: E? = null) : RequestResult<E>()
 }
 
@@ -89,6 +91,7 @@ internal fun <I, O> RequestResult<I>.map(mapper: (I) -> O): RequestResult<O> {
             val outData: O = mapper(checkNotNull(data))
             RequestResult.Success(checkNotNull(outData))
         }
+
         is RequestResult.Error -> RequestResult.Error(data?.let(mapper))
         is RequestResult.InProgress -> RequestResult.InProgress(data?.let(mapper))
     }
