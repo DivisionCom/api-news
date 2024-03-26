@@ -31,7 +31,12 @@ class ArticlesRepository(
                 }
             }
 
-        val remoteArticles = getAllFromServer()
+        val remoteArticles: Flow<RequestResult<List<Article>>> = getAllFromServer()
+            .map { result ->
+                result.map { response ->
+                    response.articles.map { it.toArticle() }
+                }
+            }
 
         return cachedAllArticles.combine(remoteArticles) { dbos: RequestResult<Article>, dtos: RequestResult<Article> ->
 
